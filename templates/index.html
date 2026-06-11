@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SrinkVideo</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0;
+         display: flex; justify-content: center; padding: 3rem 1rem; }
+  .card { background: #fff; border-radius: 12px; padding: 2rem; max-width: 480px;
+          width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
+  h1 { margin-top: 0; font-size: 1.6rem; }
+  fieldset { border: 1px solid #ddd; border-radius: 8px; margin: 1rem 0; }
+  legend { font-weight: 600; padding: 0 .4rem; }
+  label { display: block; margin: .6rem 0; cursor: pointer; }
+  input[type=file], input[type=number] { margin-top: .3rem; width: 100%;
+          box-sizing: border-box; padding: .45rem; border: 1px solid #ccc;
+          border-radius: 6px; }
+  .size-box { margin: .4rem 0 .2rem 1.6rem; display: none; }
+  button { width: 100%; padding: .7rem; margin-top: 1rem; font-size: 1rem;
+           background: #2563eb; color: #fff; border: 0; border-radius: 8px;
+           cursor: pointer; }
+  button:disabled { background: #93b4f5; cursor: wait; }
+  #status { margin-top: 1rem; font-size: .9rem; color: #555; min-height: 1.2em; }
+  .err { color: #c0392b; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎬 SrinkVideo</h1>
+  <p>Carica un file audio/video (es. <code>.mp4</code>): riceverai uno ZIP con il risultato.</p>
+
+  <form id="form">
+    <label>File da elaborare
+      <input type="file" name="file" required
+             accept="video/*,audio/*,.mp4,.mkv,.avi,.mov,.webm,.mp3,.m4a,.wav,.flac">
+    </label>
+
+    <fieldset>
+      <legend>Cosa vuoi fare?</legend>
+
+      <label>
+        <input type="radio" name="mode" value="audio" required>
+        Vuoi estrarre solo l'audio?
+      </label>
+      <div class="size-box" id="box-audio">
+        <label>Dimensione massima del singolo file (MB)
+          <input type="number" id="mb-audio" min="1" value="50">
+        </label>
+      </div>
+
+      <label>
+        <input type="radio" name="mode" value="video">
+        Vuoi dividere il file video?
+      </label>
+      <div class="size-box" id="box-video">
+        <label>Che dimensione deve avere ogni parte? (MB)
+          <input type="number" id="mb-video" min="1" value="100">
+        </label>
+      </div>
+    </fieldset>
+
+    <button type="submit" id="btn">Elabora e scarica ZIP</button>
+  </form>
+  <div id="status"></div>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const btn = document.getElementById('btn');
+const status = document.getElementById('status');
+
+form.addEventListener('change', () => {
+  const mode = form.elements.mode.value;
+  document.getElementById('box-audio').style.display = mode === 'audio' ? 'block' : 'none';
+  document.getElementById('box-video').style.display = mode === 'video' ? 'block' : 'none';
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const mode = form.elements.mode.value;
+  const mb = document.getElementById(mode === 'audio' ? 'mb-audio' : 'mb-video').value;
+  if (!mb || mb < 1) { status.innerHTML = '<span class="err">Indica una dimensione valida.</span>'; return; }
+
+  const data = new FormData();
+  data.append('file', form.elements.file.files[0]);
+  data.append('mode', mode);
+  data.append('max_mb', mb);
+
+  btn.disabled = true;
+  status.textContent = 'Caricamento ed elaborazione in corso… può richiedere qualche minuto.';
+  try {
+    const resp = await fetch('/process', { method: 'POST', body: data });
+    if (!resp.ok) throw new Error((await resp.text()).replace(/<[^>]*>/g, ' ').trim());
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const name = (cd.match(/filename="?([^";]+)/) || [,'risultato.zip'])[1];
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    status.textContent = 'Fatto! Download avviato: ' + name;
+  } catch (err) {
+    status.innerHTML = '<span class="err">Errore: ' + err.message + '</span>';
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
