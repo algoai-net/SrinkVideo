@@ -1,0 +1,9 @@
+services:
+  srinkvideo:
+    build: .
+    container_name: srinkvideo
+    ports:
+      - "8129:8129"
+    environment:
+      - MAX_UPLOAD_MB=4096
+    restart: unless-stopped

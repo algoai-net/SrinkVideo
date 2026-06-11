@@ -13,20 +13,27 @@ I file nello ZIP prendono il nome del file caricato con suffisso progressivo:
 Il risultato viene scaricato dal browser di chi carica il file; sul server non
 resta nulla (le cartelle temporanee vengono rimosse a fine richiesta).
 
-## Requisiti
-
-- Python ≥ 3.9
-- [ffmpeg](https://ffmpeg.org/) e `ffprobe` nel PATH
-  (su EL9: `dnf config-manager --set-enabled crb && dnf install ffmpeg-free` da EPEL)
-- Flask: `pip install -r requirements.txt`
-
-## Avvio
+## Avvio con Docker (consigliato)
 
 ```bash
-python3 app.py
+docker compose up -d --build
 ```
 
-Il server ascolta su `0.0.0.0:8129` (raggiungibile dalla subnet `192.168.129.0/24`).
+L'app è raggiungibile su `http://<ip-server>:8129` (subnet `192.168.129.0/24`).
+L'immagine include già ffmpeg; il container riparte da solo al riavvio del server
+(`restart: unless-stopped`).
+
+## Avvio manuale (senza Docker)
+
+Requisiti: Python ≥ 3.9, [ffmpeg](https://ffmpeg.org/) e `ffprobe` nel PATH
+(su EL9: `dnf config-manager --set-enabled crb && dnf install ffmpeg-free` da EPEL),
+poi `pip install -r requirements.txt`.
+
+```bash
+python3 app.py                                        # sviluppo
+gunicorn -w 2 -t 900 -b 0.0.0.0:8129 app:app          # produzione
+```
+
 Variabili d'ambiente:
 
 | Variabile       | Default   | Descrizione                          |
@@ -34,8 +41,6 @@ Variabili d'ambiente:
 | `HOST`          | `0.0.0.0` | Indirizzo di ascolto                 |
 | `PORT`          | `8129`    | Porta di ascolto                     |
 | `MAX_UPLOAD_MB` | `4096`    | Dimensione massima upload (MB)       |
-
-Per produzione usare un WSGI server, es.: `gunicorn -w 2 -t 600 -b 0.0.0.0:8129 app:app`
 
 ## Note tecniche
 
