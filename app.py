@@ -5,6 +5,7 @@
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -44,32 +45,40 @@ def probe(path):
     return duration, bitrate
 
 
-def extract_audio(src, outdir, max_mb):
+def safe_basename(filename):
+    """Nome base del file di ingresso, ripulito per usarlo nei nomi di output.
+
+    Il carattere % va rimosso perché avrebbe significato speciale nel
+    pattern di output di ffmpeg."""
+    stem = Path(filename).stem
+    stem = re.sub(r"[%/\\\x00-\x1f]", "_", stem).strip() or "output"
+    return stem
+
+
+def extract_audio(src, outdir, max_mb, base):
     """Estrae l'audio in MP3 e lo spezza in file da al massimo max_mb MB."""
     max_bytes = max_mb * 1024 * 1024
     # secondi di audio che stanno in max_bytes al bitrate scelto (5% di margine)
     segment_time = max(1, int(max_bytes * 8 / (AUDIO_BITRATE_KBPS * 1000) * 0.95))
-    pattern = str(outdir / "audio_%03d.mp3")
+    pattern = str(outdir / f"{base}_%03d.mp3")
     run(["ffmpeg", "-y", "-i", str(src), "-vn",
          "-c:a", "libmp3lame", "-b:a", f"{AUDIO_BITRATE_KBPS}k",
          "-f", "segment", "-segment_time", str(segment_time),
          "-reset_timestamps", "1", pattern])
 
 
-def split_video(src, outdir, max_mb):
-    """Divide il video in parti da circa max_mb MB senza ricodifica."""
+def split_video(src, outdir, max_mb, base):
+    """Divide il video in parti MP4 da circa max_mb MB senza ricodifica."""
     max_bytes = max_mb * 1024 * 1024
     duration, bitrate = probe(src)
     if not bitrate:
         raise RuntimeError("Impossibile determinare il bitrate del file.")
     # il taglio avviene sui keyframe: 10% di margine sulla dimensione richiesta
     segment_time = max(1, int(max_bytes * 8 / bitrate * 0.90))
-    ext = Path(src).suffix.lower()
-    if ext not in {".mp4", ".mkv", ".mov", ".m4v", ".ts", ".webm"}:
-        ext = ".mkv"  # contenitore sicuro per lo stream copy
-    pattern = str(outdir / f"parte_%03d{ext}")
+    pattern = str(outdir / f"{base}_%03d.mp4")
     run(["ffmpeg", "-y", "-i", str(src), "-c", "copy", "-map", "0",
-         "-f", "segment", "-segment_time", str(segment_time),
+         "-f", "segment", "-segment_format", "mp4",
+         "-segment_time", str(segment_time),
          "-reset_timestamps", "1", pattern])
 
 
@@ -102,18 +111,18 @@ def process():
         src = workdir / f"input{ext}"
         upload.save(src)
 
+        base = safe_basename(upload.filename)
         outdir = workdir / "out"
         outdir.mkdir()
         if mode == "audio":
-            extract_audio(src, outdir, max_mb)
+            extract_audio(src, outdir, max_mb, base)
         else:
-            split_video(src, outdir, max_mb)
+            split_video(src, outdir, max_mb, base)
 
         parts = sorted(outdir.iterdir())
         if not parts:
             abort(500, "Nessun file prodotto dalla conversione.")
 
-        base = Path(upload.filename).stem or "output"
         zip_path = workdir / f"{base}_{uuid.uuid4().hex[:8]}.zip"
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_STORED) as zf:
             for p in parts:
