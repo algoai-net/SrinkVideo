@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SrinkVideo — i tuoi file</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0;
+         display: flex; justify-content: center; padding: 3rem 1rem; }
+  .card { background: #fff; border-radius: 12px; padding: 2rem; max-width: 560px;
+          width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
+  h1 { margin-top: 0; font-size: 1.5rem; }
+  ul { list-style: none; padding: 0; margin: 1rem 0; }
+  li { display: flex; justify-content: space-between; align-items: center;
+       padding: .55rem .2rem; border-bottom: 1px solid #eee; gap: 1rem; }
+  li span { word-break: break-all; }
+  a.dl { background: #2563eb; color: #fff; text-decoration: none; padding: .35rem .8rem;
+         border-radius: 6px; font-size: .85rem; white-space: nowrap; }
+  .note { color: #666; font-size: .9rem; }
+  .err { color: #c0392b; font-size: .9rem; }
+  .badge { display: inline-block; padding: .2rem .6rem; border-radius: 999px;
+           font-size: .8rem; background: #eef1f4; color: #333; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎬 I tuoi file</h1>
+
+  {% if meta.status != 'done' %}
+    <p><span class="badge">Elaborazione in corso…</span></p>
+    <p class="note" id="progress">{{ meta.processed }} / {{ meta.total }} file elaborati.
+       La pagina si aggiorna da sola; al termine riceverai anche una mail.</p>
+    <script>
+      const token = "{{ meta.token }}";
+      async function poll() {
+        try {
+          const r = await fetch(`/job/${token}/status`);
+          const j = await r.json();
+          if (j.status === 'done') { location.reload(); return; }
+          document.getElementById('progress').textContent =
+            `${j.processed} / ${j.total} file elaborati. La pagina si aggiorna da sola.`;
+        } catch (e) {}
+        setTimeout(poll, 5000);
+      }
+      setTimeout(poll, 5000);
+    </script>
+  {% else %}
+    {% if meta.files %}
+      <p class="note">{{ meta.files|length }} file pronti. Verranno cancellati dopo {{ retention_days }} giorni.</p>
+      <ul>
+        {% for f in meta.files %}
+          <li>
+            <span>{{ f }}</span>
+            <a class="dl" href="{{ url_for('job_file', token=meta.token, name=f) }}">Scarica</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="err">Nessun file prodotto.</p>
+    {% endif %}
+
+    {% if meta.skipped %}
+      <p class="note">File ignorati (sotto soglia o non supportati): {{ meta.skipped|length }}.</p>
+    {% endif %}
+    {% if meta.errors %}
+      <p class="err">File in errore: {{ meta.errors|length }}.</p>
+      <ul>
+        {% for e in meta.errors %}<li><span>{{ e.name }}</span></li>{% endfor %}
+      </ul>
+    {% endif %}
+  {% endif %}
+</div>
+</body>
+</html>

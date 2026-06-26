@@ -7,65 +7,135 @@
 <style>
   body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0;
          display: flex; justify-content: center; padding: 3rem 1rem; }
-  .card { background: #fff; border-radius: 12px; padding: 2rem; max-width: 480px;
+  .card { background: #fff; border-radius: 12px; padding: 2rem; max-width: 520px;
           width: 100%; box-shadow: 0 2px 12px rgba(0,0,0,.1); }
   h1 { margin-top: 0; font-size: 1.6rem; }
+  .tabs { display: flex; gap: .4rem; margin-bottom: 1.2rem; }
+  .tabs button { flex: 1; padding: .6rem; border: 1px solid #ccc; background: #eef1f4;
+          color: #333; border-radius: 8px; cursor: pointer; font-size: .95rem; margin: 0; }
+  .tabs button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .pane { display: none; }
+  .pane.active { display: block; }
   fieldset { border: 1px solid #ddd; border-radius: 8px; margin: 1rem 0; }
   legend { font-weight: 600; padding: 0 .4rem; }
   label { display: block; margin: .6rem 0; cursor: pointer; }
-  input[type=file], input[type=number] { margin-top: .3rem; width: 100%;
-          box-sizing: border-box; padding: .45rem; border: 1px solid #ccc;
-          border-radius: 6px; }
+  input[type=file], input[type=number], input[type=text], input[type=email] {
+          margin-top: .3rem; width: 100%; box-sizing: border-box; padding: .45rem;
+          border: 1px solid #ccc; border-radius: 6px; }
   .size-box { margin: .4rem 0 .2rem 1.6rem; display: none; }
   button { width: 100%; padding: .7rem; margin-top: 1rem; font-size: 1rem;
            background: #2563eb; color: #fff; border: 0; border-radius: 8px;
            cursor: pointer; }
   button:disabled { background: #93b4f5; cursor: wait; }
-  #status { margin-top: 1rem; font-size: .9rem; color: #555; min-height: 1.2em; }
+  .status { margin-top: 1rem; font-size: .9rem; color: #555; min-height: 1.2em; }
   .err { color: #c0392b; }
+  .ok { color: #1b7a3d; }
+  small { color: #666; }
 </style>
 </head>
 <body>
 <div class="card">
   <h1>🎬 SrinkVideo</h1>
-  <p>Carica un file audio/video (es. <code>.mp4</code>): riceverai uno ZIP con il risultato.</p>
 
-  <form id="form">
-    <label>File da elaborare
-      <input type="file" name="file" required
-             accept="video/*,audio/*,.mp4,.mkv,.avi,.mov,.webm,.mp3,.m4a,.wav,.flac">
-    </label>
+  <div class="tabs">
+    <button id="tab-single" class="active" onclick="showPane('single')">Singolo file</button>
+    <button id="tab-folder" onclick="showPane('folder')">Cartella</button>
+  </div>
 
-    <fieldset>
-      <legend>Cosa vuoi fare?</legend>
-
-      <label>
-        <input type="radio" name="mode" value="audio" required>
-        Vuoi estrarre solo l'audio?
+  <!-- ================= TAB 1: singolo file ================= -->
+  <div id="pane-single" class="pane active">
+    <p>Carica un file audio/video (es. <code>.mp4</code>): riceverai uno ZIP con il risultato.</p>
+    <form id="form">
+      <label>File da elaborare
+        <input type="file" name="file" required
+               accept="video/*,audio/*,.mp4,.mkv,.avi,.mov,.webm,.mp3,.m4a,.wav,.flac">
       </label>
-      <div class="size-box" id="box-audio">
-        <label>Dimensione massima del singolo file (MB)
-          <input type="number" id="mb-audio" min="1" value="50">
-        </label>
-      </div>
 
-      <label>
-        <input type="radio" name="mode" value="video">
-        Vuoi dividere il file video?
+      <label>Nome dei file da scaricare <small>(opzionale)</small>
+        <input type="text" id="out_name" maxlength="60" placeholder="es. riunione_missioni">
+        <small>Compilalo se il nome del file è molto lungo: nomi troppo lunghi
+        impediscono di estrarre lo ZIP su Windows.</small>
       </label>
-      <div class="size-box" id="box-video">
-        <label>Che dimensione deve avere ogni parte? (MB)
-          <input type="number" id="mb-video" min="1" value="100">
-        </label>
-      </div>
-    </fieldset>
 
-    <button type="submit" id="btn">Elabora e scarica ZIP</button>
-  </form>
-  <div id="status"></div>
+      <fieldset>
+        <legend>Cosa vuoi fare?</legend>
+        <label>
+          <input type="radio" name="mode" value="audio" required>
+          Vuoi estrarre solo l'audio?
+        </label>
+        <div class="size-box" id="box-audio">
+          <label>Dimensione massima del singolo file (MB)
+            <input type="number" id="mb-audio" min="1" value="50">
+          </label>
+        </div>
+        <label>
+          <input type="radio" name="mode" value="video">
+          Vuoi dividere il file video?
+        </label>
+        <div class="size-box" id="box-video">
+          <label>Che dimensione deve avere ogni parte? (MB)
+            <input type="number" id="mb-video" min="1" value="100">
+          </label>
+        </div>
+      </fieldset>
+
+      <button type="submit" id="btn">Elabora e scarica ZIP</button>
+    </form>
+    <div id="status" class="status"></div>
+  </div>
+
+  <!-- ================= TAB 2: cartella ================= -->
+  <div id="pane-folder" class="pane">
+    <p>Carica una <strong>cartella intera</strong>. I file più grandi della soglia
+    vengono elaborati; al termine ricevi una <strong>mail</strong> con il link da cui
+    scaricarli uno a uno. I dati vengono cancellati dopo 7 giorni.</p>
+    <form id="form-folder">
+      <label>Cartella da elaborare
+        <input type="file" id="folder" webkitdirectory directory multiple required>
+      </label>
+
+      <label>Email a cui inviare il link
+        <input type="email" id="email" required placeholder="nome.cognome@algogroup.net">
+      </label>
+
+      <fieldset>
+        <legend>Cosa vuoi ottenere?</legend>
+        <label><input type="radio" name="fmode" value="video" checked> Video (più leggero)</label>
+        <label><input type="radio" name="fmode" value="audio"> Solo audio (MP3)</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Come ridurre i file?</legend>
+        <label><input type="radio" name="fmethod" value="recompress" checked>
+          Ricomprimi a un peso target <small>(un file per ingresso, perde qualità)</small></label>
+        <label><input type="radio" name="fmethod" value="split">
+          Dividi in parti <small>(nessuna perdita, più file per ingresso)</small></label>
+      </fieldset>
+
+      <label>Elabora i file più grandi di (MB)
+        <input type="number" id="max_mb" min="1" value="200">
+        <small>I file sotto questa soglia vengono ignorati.</small>
+      </label>
+
+      <label>Dimensione di uscita desiderata (MB)
+        <input type="number" id="out_mb" min="1" value="100">
+      </label>
+
+      <button type="submit" id="btn-folder">Avvia elaborazione</button>
+    </form>
+    <div id="status-folder" class="status"></div>
+  </div>
 </div>
 
 <script>
+function showPane(name) {
+  for (const p of ['single', 'folder']) {
+    document.getElementById('pane-' + p).classList.toggle('active', p === name);
+    document.getElementById('tab-' + p).classList.toggle('active', p === name);
+  }
+}
+
+// ---- Tab 1 ----
 const form = document.getElementById('form');
 const btn = document.getElementById('btn');
 const status = document.getElementById('status');
@@ -86,6 +156,8 @@ form.addEventListener('submit', async (e) => {
   data.append('file', form.elements.file.files[0]);
   data.append('mode', mode);
   data.append('max_mb', mb);
+  const outName = document.getElementById('out_name').value.trim();
+  if (outName) data.append('out_name', outName);
 
   btn.disabled = true;
   status.textContent = 'Caricamento ed elaborazione in corso… può richiedere qualche minuto.';
@@ -105,6 +177,40 @@ form.addEventListener('submit', async (e) => {
     status.innerHTML = '<span class="err">Errore: ' + err.message + '</span>';
   } finally {
     btn.disabled = false;
+  }
+});
+
+// ---- Tab 2 ----
+const formF = document.getElementById('form-folder');
+const btnF = document.getElementById('btn-folder');
+const statusF = document.getElementById('status-folder');
+
+formF.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const files = document.getElementById('folder').files;
+  if (!files.length) { statusF.innerHTML = '<span class="err">Seleziona una cartella.</span>'; return; }
+
+  const data = new FormData();
+  for (const f of files) data.append('files', f, f.webkitRelativePath || f.name);
+  data.append('mode', formF.elements.fmode.value);
+  data.append('method', formF.elements.fmethod.value);
+  data.append('email', document.getElementById('email').value.trim());
+  data.append('max_mb', document.getElementById('max_mb').value);
+  data.append('out_mb', document.getElementById('out_mb').value);
+
+  btnF.disabled = true;
+  statusF.textContent = 'Caricamento della cartella in corso…';
+  try {
+    const resp = await fetch('/process_folder', { method: 'POST', body: data });
+    if (!resp.ok) throw new Error((await resp.text()).replace(/<[^>]*>/g, ' ').trim());
+    const j = await resp.json();
+    statusF.innerHTML = '<span class="ok">Elaborazione avviata su ' + j.total +
+      ' file. Riceverai una mail al termine.</span><br>' +
+      'Puoi anche seguire l\'avanzamento qui: <a href="' + j.link + '">' + j.link + '</a>';
+  } catch (err) {
+    statusF.innerHTML = '<span class="err">Errore: ' + err.message + '</span>';
+  } finally {
+    btnF.disabled = false;
   }
 });
 </script>
