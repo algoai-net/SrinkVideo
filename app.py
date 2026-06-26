@@ -52,6 +52,10 @@ RETENTION_SECONDS = RETENTION_DAYS * 24 * 3600
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp2.algo.it")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "25"))
 MAIL_FROM = os.environ.get("MAIL_FROM", "srinkvideo@algo.it")
+# URL pubblico del server usato nei link via mail: deve puntare all'IP/hostname
+# raggiungibile dagli utenti, non all'host della richiesta (che sotto proxy o
+# in test può essere 127.0.0.1). Se vuoto si usa request.host_url come ripiego.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").rstrip("/")
 
 _meta_lock = threading.Lock()
 
@@ -412,7 +416,7 @@ def process_folder():
         "method": method,
         "max_mb": max_mb,
         "out_mb": out_mb,
-        "base_url": request.host_url,
+        "base_url": PUBLIC_BASE_URL or request.host_url,
         "status": "queued",
         "total": saved,
         "processed": 0,

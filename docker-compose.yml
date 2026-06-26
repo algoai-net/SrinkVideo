@@ -11,6 +11,7 @@ services:
       - SMTP_HOST=smtp2.algo.it
       - SMTP_PORT=25
       - MAIL_FROM=srinkvideo@algo.it
+      - PUBLIC_BASE_URL=http://10.60.5.170:8129
     volumes:
       - srinkvideo_data:/data
     restart: unless-stopped
