@@ -5,5 +5,22 @@ services:
     ports:
       - "8129:8129"
     environment:
-      - MAX_UPLOAD_MB=4096
+      - MAX_UPLOAD_MB=20480
+      - DATA_DIR=/data
+      - RETENTION_DAYS=7
+      - SMTP_HOST=smtp2.algo.it
+      - SMTP_PORT=25
+      - MAIL_FROM=srinkvideo@algo.it
+    volumes:
+      - srinkvideo_data:/data
     restart: unless-stopped
+
+volumes:
+  srinkvideo_data:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 192.168.129.0/24
+          gateway: 192.168.129.1
